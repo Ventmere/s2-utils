@@ -4,7 +4,7 @@ type Container<A, R> = RwLock<Vec<Slot<A, R>>>;
 
 enum Slot<A, R> {
   Empty,
-  Occupied(i64, Box<Fn(A) -> R + Send>),
+  Occupied(i64, Box<dyn Fn(A) -> R + Send>),
 }
 
 pub struct SlotHandle<A, R> {
@@ -34,10 +34,11 @@ impl<A, R> Delegate<A, R> {
       .filter(|slot| match **slot {
         Slot::Occupied(_, _) => true,
         _ => false,
-      }).count()
+      })
+      .count()
   }
 
-  fn make_occupied(&self, b: Box<Fn(A) -> R + Send>) -> Slot<A, R> {
+  fn make_occupied(&self, b: Box<dyn Fn(A) -> R + Send>) -> Slot<A, R> {
     let mut max = self.max.write().unwrap();
     let next = (*max) + 1;
     *max = next;
@@ -105,7 +106,8 @@ impl<A, R> Delegate<A, R> {
       .filter_map(|slot| match *slot {
         Slot::Occupied(i, ref f) => Some((i, f.as_ref())),
         _ => None,
-      }).collect();
+      })
+      .collect();
 
     pairs.sort_by_key(|p| p.0);
     pairs.into_iter().map(|(_, f)| f(arg.clone())).collect()
