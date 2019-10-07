@@ -1,6 +1,6 @@
+use proc_macro::TokenStream;
 use quote::{self, ToTokens};
 use syn::*;
-use proc_macro::TokenStream;
 
 struct FromStruct {
   from_ty: quote::Tokens,
@@ -12,7 +12,7 @@ struct FromStruct {
 struct FieldConfig {
   name: Ident,
   borrow: bool,
-  expr: Box<quote::ToTokens>,
+  expr: Box<dyn quote::ToTokens>,
 }
 
 pub fn derive(input: TokenStream) -> TokenStream {
@@ -81,7 +81,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
     .into_iter()
     .map(|s| {
       let from_ty = s.from_ty;
-      let fields: Vec<_> = s.fields
+      let fields: Vec<_> = s
+        .fields
         .into_iter()
         .map(|f| {
           let name = f.name;
@@ -161,12 +162,13 @@ fn parse_map_from(items: Vec<&NestedMeta>) -> FromStruct {
 
   let ty_item = items[0];
   let (from_ty, has_lifetime) = match *ty_item {
-    NestedMeta::Meta(Meta::Word(ref ident)) => (quote!{ #ident }, false),
+    NestedMeta::Meta(Meta::Word(ref ident)) => (quote! { #ident }, false),
     NestedMeta::Meta(Meta::NameValue(MetaNameValue {
       ref ident,
       lit: Lit::Str(ref ty_lit),
       ..
-    })) if ident == "From" =>
+    }))
+      if ident == "From" =>
     {
       let ty_str = ty_lit.value();
       //TODO parse, not guess
@@ -197,7 +199,8 @@ fn parse_map_from(items: Vec<&NestedMeta>) -> FromStruct {
         ref ident,
         ref nested,
         ..
-      })) if ident == "fields" =>
+      }))
+        if ident == "fields" =>
       {
         for item in nested.iter() {
           v.fields.push(parse_field_config(item));
