@@ -71,11 +71,34 @@ where
     delete: vec![],
   };
 
+  let mut update = vec![];
+
   for ni in new_items {
     let key = ni.get_item_key();
-    let existing = existing_items.iter().find(|i| i.get_item_key() == key);
+    let mut existing: Vec<_> = existing_items
+      .iter()
+      .filter(|i| i.get_item_key() == key)
+      .collect();
+    // If more than 1 matches found, update the first one, remove the rest.
+    let existing = if existing.len() > 1 {
+      let item = existing.remove(0);
+      result.delete.extend(existing);
+      Some(item)
+    } else {
+      if existing.len() == 1 {
+        Some(existing.remove(0))
+      } else {
+        None
+      }
+    };
     match existing {
-      Some(ei) => result.update.push((ei, ni)),
+      Some(ei) => {
+        if let Some(pos) = update.iter().position(|(k, _, _)| *k == key) {
+          update[pos] = (key, ei, ni);
+        } else {
+          update.push((key, ei, ni));
+        }
+      }
       None => result.add.push(ni),
     }
   }
@@ -88,6 +111,8 @@ where
       None => result.delete.push(ei),
     }
   }
+
+  result.update = update.into_iter().map(|(_, ei, ni)| (ei, ni)).collect();
 
   result
 }
@@ -113,7 +138,8 @@ where
       } else {
         None
       }
-    }).collect()
+    })
+    .collect()
 }
 
 pub enum DedupKeyList<T> {
