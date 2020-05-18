@@ -50,7 +50,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
           }
         }
       },
-    ).collect();
+    )
+    .collect();
 
   let to_str_items: Vec<_> = variants
     .iter()
@@ -79,7 +80,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
           }
         }
       },
-    ).collect();
+    )
+    .collect();
 
   let deref_str_items: Vec<_> = variants
     .iter()
@@ -108,7 +110,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
           }
         }
       },
-    ).collect();
+    )
+    .collect();
 
   let known_variants_items: Vec<_> = variants
     .iter()
@@ -128,58 +131,59 @@ pub fn derive(input: TokenStream) -> TokenStream {
           })
         }
       },
-    ).collect();
+    )
+    .collect();
 
   let diesel_code = if enabled_impls.iter().any(|k| k == "diesel") {
     let as_expr = quote! {
-      impl ::s2_db::diesel::expression::AsExpression<::s2_db::diesel::sql_types::Text> for #enum_name {
-        type Expression = <&'static str as ::s2_db::diesel::expression::AsExpression<::s2_db::diesel::sql_types::Text>>::Expression;
+      impl crate::diesel::expression::AsExpression<crate::diesel::sql_types::Text> for #enum_name {
+        type Expression = <&'static str as crate::diesel::expression::AsExpression<crate::diesel::sql_types::Text>>::Expression;
 
         fn as_expression(self) -> Self::Expression {
-          <&'static str as ::s2_db::diesel::expression::AsExpression<::s2_db::diesel::sql_types::Text>>::as_expression(self.to_str())
+          <&'static str as crate::diesel::expression::AsExpression<crate::diesel::sql_types::Text>>::as_expression(self.to_str())
         }
       }
     };
 
     let as_expr_ref = quote! {
-      impl<'a> ::s2_db::diesel::expression::AsExpression<::s2_db::diesel::sql_types::Text> for &'a #enum_name {
-        type Expression = <&'static str as ::s2_db::diesel::expression::AsExpression<::s2_db::diesel::sql_types::Text>>::Expression;
+      impl<'a> crate::diesel::expression::AsExpression<crate::diesel::sql_types::Text> for &'a #enum_name {
+        type Expression = <&'static str as crate::diesel::expression::AsExpression<crate::diesel::sql_types::Text>>::Expression;
 
         fn as_expression(self) -> Self::Expression {
-          <&'static str as ::s2_db::diesel::expression::AsExpression<::s2_db::diesel::sql_types::Text>>::as_expression(self.to_str())
+          <&'static str as crate::diesel::expression::AsExpression<crate::diesel::sql_types::Text>>::as_expression(self.to_str())
         }
       }
     };
 
     let queryable = quote! {
-      impl<DB> ::s2_db::diesel::query_source::Queryable<::s2_db::diesel::sql_types::Text, DB> for #enum_name
-      where DB: ::s2_db::diesel::backend::Backend<RawValue = [u8]>
+      impl<DB> crate::diesel::query_source::Queryable<crate::diesel::sql_types::Text, DB> for #enum_name
+      where DB: crate::diesel::backend::Backend<RawValue = [u8]>
       {
-        type Row = <String as ::s2_db::diesel::query_source::Queryable<::s2_db::diesel::sql_types::Text, DB>>::Row;
+        type Row = <String as crate::diesel::query_source::Queryable<crate::diesel::sql_types::Text, DB>>::Row;
         fn build(row: Self::Row) -> Self {
-          let v = <String as ::s2_db::diesel::query_source::Queryable<::s2_db::diesel::sql_types::Text, DB>>::build(row);
+          let v = <String as crate::diesel::query_source::Queryable<crate::diesel::sql_types::Text, DB>>::build(row);
           Self::from(&v)
         }
       }
     };
 
     let from_sql = quote! {
-      impl<DB> ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB> for #enum_name
-      where DB: ::s2_db::diesel::backend::Backend<RawValue = [u8]>
+      impl<DB> crate::diesel::deserialize::FromSql<crate::diesel::sql_types::Text, DB> for #enum_name
+      where DB: crate::diesel::backend::Backend<RawValue = [u8]>
       {
-        fn from_sql(bytes: Option<&DB::RawValue>) -> ::s2_db::diesel::deserialize::Result<Self> {
-          let str_value = <String as ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB>>::from_sql(bytes)?;
+        fn from_sql(bytes: Option<&DB::RawValue>) -> crate::diesel::deserialize::Result<Self> {
+          let str_value = <String as crate::diesel::deserialize::FromSql<crate::diesel::sql_types::Text, DB>>::from_sql(bytes)?;
           Ok(Self::from(&str_value))
         }
       }
     };
 
     let to_sql = quote! {
-      impl<DB> ::s2_db::diesel::serialize::ToSql<::s2_db::diesel::sql_types::Text, DB> for #enum_name
-      where DB: ::s2_db::diesel::backend::Backend<RawValue = [u8]>
+      impl<DB> crate::diesel::serialize::ToSql<crate::diesel::sql_types::Text, DB> for #enum_name
+      where DB: crate::diesel::backend::Backend<RawValue = [u8]>
       {
-        fn to_sql<W: ::std::io::Write>(&self, out: &mut ::s2_db::diesel::serialize::Output<W, DB>) -> ::s2_db::diesel::serialize::Result {
-          <str as ::s2_db::diesel::serialize::ToSql<::s2_db::diesel::sql_types::Text, DB>>::to_sql(self.to_str(), out)
+        fn to_sql<W: ::std::io::Write>(&self, out: &mut crate::diesel::serialize::Output<W, DB>) -> crate::diesel::serialize::Result {
+          <str as crate::diesel::serialize::ToSql<crate::diesel::sql_types::Text, DB>>::to_sql(self.to_str(), out)
         }
       }
     };
@@ -249,17 +253,14 @@ fn parse_enabled_impls(attrs: &Vec<Attribute>) -> Vec<String> {
           ref ident,
           ref nested,
           ..
-        })
-          if ident == "str_enum_impl" =>
-        {
-          nested.iter().next().and_then(|meta| match *meta {
-            NestedMeta::Meta(Meta::Word(ref ident)) => Some(ident.to_string()),
-            _ => panic!("#[str_enum_impl(..)] expects a Meta::Word(..)"),
-          })
-        }
+        }) if ident == "str_enum_impl" => nested.iter().next().and_then(|meta| match *meta {
+          NestedMeta::Meta(Meta::Word(ref ident)) => Some(ident.to_string()),
+          _ => panic!("#[str_enum_impl(..)] expects a Meta::Word(..)"),
+        }),
         _ => None,
       }
-    }).collect()
+    })
+    .collect()
 }
 
 fn parse_variants(data: &Data) -> Vec<VariantConfig> {
@@ -297,7 +298,8 @@ fn parse_variant(variant: &Variant) -> VariantConfig {
         })
       }
       _ => None,
-    }).next()
+    })
+    .next()
     .unwrap_or_else(|| get_snake_case_name(variant.ident.as_ref()));
 
   match variant.fields {
@@ -349,5 +351,6 @@ fn get_snake_case_name(name: &str) -> String {
       } else {
         vec![c].into_iter()
       }
-    }).collect()
+    })
+    .collect()
 }
