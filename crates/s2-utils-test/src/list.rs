@@ -1,4 +1,3 @@
-use s2_utils::list::get_changed_items;
 use s2_utils_derive::HasItemKey;
 
 #[derive(Debug, HasItemKey, PartialEq)]
@@ -11,6 +10,7 @@ struct B(i32);
 
 #[test]
 fn test_get_item_changes() {
+  use s2_utils::list::get_changed_items;
   {
     let l1 = vec![A(1), A(2), A(3)];
     let l2 = vec![B(1), B(2), B(3)];
