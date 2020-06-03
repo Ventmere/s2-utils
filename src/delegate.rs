@@ -57,10 +57,7 @@ impl<A, R> Delegate<A, R> {
     });
 
     let pos = if let Some(pos) = empty_pos {
-      ::std::mem::replace(
-        slots.get_mut(pos).unwrap(),
-        self.make_occupied(Box::new(cb)),
-      );
+      *slots.get_mut(pos).unwrap() = self.make_occupied(Box::new(cb));
       pos
     } else {
       slots.push(self.make_occupied(Box::new(cb)));
@@ -86,7 +83,7 @@ impl<A, R> Delegate<A, R> {
         if !Arc::ptr_eq(&self.slots, &handle_dispatcher) {
           Some("handle does not belong to this dispatcher")
         } else {
-          ::std::mem::replace(&mut slots[handle.pos], Slot::Empty);
+          slots[handle.pos] = Slot::Empty;
           None
         }
       }
