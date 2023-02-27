@@ -4,7 +4,7 @@ type Container<A, R> = RwLock<Vec<Slot<A, R>>>;
 
 enum Slot<A, R> {
   Empty,
-  Occupied(i64, Box<Fn(A) -> R + Send>),
+  Occupied(i64, Box<dyn Fn(A) -> R + Send>),
 }
 
 pub struct SlotHandle<A, R> {
@@ -37,7 +37,7 @@ impl<A, R> Delegate<A, R> {
       }).count()
   }
 
-  fn make_occupied(&self, b: Box<Fn(A) -> R + Send>) -> Slot<A, R> {
+  fn make_occupied(&self, b: Box<dyn Fn(A) -> R + Send>) -> Slot<A, R> {
     let mut max = self.max.write().unwrap();
     let next = (*max) + 1;
     *max = next;
@@ -56,11 +56,9 @@ impl<A, R> Delegate<A, R> {
     });
 
     let pos = if let Some(pos) = empty_pos {
-      ::std::mem::replace(
-        slots.get_mut(pos).unwrap(),
-        self.make_occupied(Box::new(cb)),
-      );
+      *slots.get_mut(pos).unwrap() = self.make_occupied(Box::new(cb));
       pos
+
     } else {
       slots.push(self.make_occupied(Box::new(cb)));
       slots.len() - 1
@@ -85,7 +83,7 @@ impl<A, R> Delegate<A, R> {
         if !Arc::ptr_eq(&self.slots, &handle_dispatcher) {
           Some("handle does not belong to this dispatcher")
         } else {
-          ::std::mem::replace(&mut slots[handle.pos], Slot::Empty);
+          *&mut slots[handle.pos] = Slot::Empty;
           None
         }
       }

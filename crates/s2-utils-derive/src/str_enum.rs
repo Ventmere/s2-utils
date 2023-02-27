@@ -151,35 +151,42 @@ pub fn derive(input: TokenStream) -> TokenStream {
       }
     };
 
-    let queryable = quote! {
-      impl<DB> ::s2_db::diesel::query_source::Queryable<::s2_db::diesel::sql_types::Text, DB> for #enum_name
-      where DB: ::s2_db::diesel::backend::Backend<RawValue = [u8]>
-      {
-        type Row = <String as ::s2_db::diesel::query_source::Queryable<::s2_db::diesel::sql_types::Text, DB>>::Row;
-        fn build(row: Self::Row) -> Self {
-          let v = <String as ::s2_db::diesel::query_source::Queryable<::s2_db::diesel::sql_types::Text, DB>>::build(row);
-          Self::from(&v)
-        }
-      }
-    };
+    // let queryable = quote! {
+    //   impl<DB: ::s2_db::diesel::backend::Backend> ::s2_db::diesel::prelude::Queryable<::s2_db::diesel::sql_types::Text, DB> for #enum_name
+    //   //where DB: ::s2_db::diesel::backend::Backend<RawValue = [u8]>
+    //   where String: ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB>, *const str: ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB> 
+    //   {
+    //     type Row = <String as ::s2_db::diesel::prelude::Queryable<::s2_db::diesel::sql_types::Text, DB>>::Row;
+    //     fn build(row: Self::Row) -> Self {
+    //       let v = <String as ::s2_db::diesel::prelude::Queryable<::s2_db::diesel::sql_types::Text, DB>>::build(row);
+    //       Self::from(&v)
+    //     }
+    //   }
+    // };
 
     let from_sql = quote! {
-      impl<DB> ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB> for #enum_name
-      where DB: ::s2_db::diesel::backend::Backend<RawValue = [u8]>
-      {
-        fn from_sql(bytes: Option<&DB::RawValue>) -> ::s2_db::diesel::deserialize::Result<Self> {
+      impl<DB: ::s2_db::diesel::backend::Backend> ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB> for #enum_name
+      where String: ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB>, *const str: ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB> {
+        fn from_sql(bytes: diesel::backend::RawValue<'_, DB>) -> s2_db::diesel::deserialize::Result<Self> {
           let str_value = <String as ::s2_db::diesel::deserialize::FromSql<::s2_db::diesel::sql_types::Text, DB>>::from_sql(bytes)?;
           Ok(Self::from(&str_value))
         }
-      }
+
+        fn from_nullable_sql(bytes: Option<diesel::backend::RawValue<'_, DB>>) -> ::s2_db::diesel::deserialize::Result<Self> {
+            match bytes {
+                Some(bytes) => Self::from_sql(bytes),
+                None => Err(Box::new(s2_db::diesel::result::UnexpectedNullError)),
+            }
+        }
+    }
     };
 
     let to_sql = quote! {
-      impl<DB> ::s2_db::diesel::serialize::ToSql<::s2_db::diesel::sql_types::Text, DB> for #enum_name
-      where DB: ::s2_db::diesel::backend::Backend<RawValue = [u8]>
-      {
-        fn to_sql<W: ::std::io::Write>(&self, out: &mut ::s2_db::diesel::serialize::Output<W, DB>) -> ::s2_db::diesel::serialize::Result {
+      impl<DB: ::s2_db::diesel::backend::Backend> ::s2_db::diesel::serialize::ToSql<::s2_db::diesel::sql_types::Text, DB> for #enum_name where str: ::s2_db::diesel::serialize::ToSql<::s2_db::diesel::sql_types::Text, DB>{
+        fn to_sql<'b>(&'b self, out: &mut s2_db::diesel::serialize::Output<'b, '_, DB>) -> s2_db::diesel::serialize::Result {
+
           <str as ::s2_db::diesel::serialize::ToSql<::s2_db::diesel::sql_types::Text, DB>>::to_sql(self.to_str(), out)
+          //<str as ToSql<Text, DB>>::to_sql(self.to_string().as_str(), out)
         }
       }
     };
@@ -187,7 +194,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     Some(quote! {
       #as_expr
       #as_expr_ref
-      #queryable
+      // #queryable
       #from_sql
       #to_sql
     })

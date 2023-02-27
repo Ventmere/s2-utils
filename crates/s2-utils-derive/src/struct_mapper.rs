@@ -12,7 +12,7 @@ struct FromStruct {
 struct FieldConfig {
   name: Ident,
   borrow: bool,
-  expr: Box<quote::ToTokens>,
+  expr: Box<dyn quote::ToTokens>,
 }
 
 pub fn derive(input: TokenStream) -> TokenStream {
